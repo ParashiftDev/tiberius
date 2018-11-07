@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use futures::{Async, Future, Poll, Sink, Stream};
 use futures::sync::oneshot;
 use futures_state_stream::{StateStream, StreamEvent};
-use tokens::{DoneStatus, TdsResponseToken, TokenRow};
-use types::FromColumnData;
+use tokens::{DoneStatus, TdsResponseToken, TokenRow, MetaDataColumn};
+use types::{FromColumnData, ColumnData};
 use {BoxableIo, SqlConnection, StmtResult, Error, Result};
 
 /// A query result consists of multiple query streams (amount of executed queries = amount of results)
@@ -118,7 +118,9 @@ impl<I: BoxableIo> ResultInner<I> {
     fn send_back(&mut self) -> Result<bool> {
         if let Some((conn, ret_conn)) = self.0.take() {
             ret_conn.send(conn)
-                .map_err(|_| Error::Canceled)
+                .map_err(|_| {
+                    Error::Canceled
+                })
                 .map(|_| true)
         } else {
             Ok(false)
@@ -129,7 +131,7 @@ impl<I: BoxableIo> ResultInner<I> {
 impl<I: BoxableIo> Drop for ResultInner<I> {
     fn drop(&mut self) {
         if !::std::thread::panicking() {
-            self.send_back().unwrap();
+            self.send_back().unwrap_or(false);
         }
     }
 }
@@ -283,6 +285,14 @@ impl QueryRow {
     /// Returns the amount of columns in the row
     pub fn len(&self) -> usize {
         self.0.columns.len()
+    }
+
+    pub fn columns(&self) -> &Vec<MetaDataColumn> {
+        &self.0.meta.columns
+    }
+
+    pub fn column_data(&self) -> &Vec<ColumnData<'static>> {
+        &self.0.columns
     }
 
     /// Attempt to get a column's value for a given column index

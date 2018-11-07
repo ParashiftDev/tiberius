@@ -161,7 +161,7 @@ mod transaction;
 use transport::{Io, TdsTransport, TransportStream};
 use protocol::{LoginMessage, PacketType, PreloginMessage, SerializeMessage, SspiMessage,
                UnserializeMessage};
-use types::{ColumnData, ToSql};
+pub use types::{ColumnData, ToSql};
 use tokens::{DoneStatus, RpcOptionFlags, RpcParam, RpcProcId, RpcProcIdValue, RpcStatusFlags,
              TdsResponseToken, TokenColMetaData, TokenRpcRequest, WriteToken};
 use query::{ExecFuture, QueryStream, ResultSetStream};
@@ -223,6 +223,26 @@ impl From<std::str::Utf8Error> for Error {
 impl From<std::string::FromUtf16Error> for Error {
     fn from(err: std::string::FromUtf16Error) -> Error {
         Error::Utf16(err)
+    }
+}
+
+impl std::error::Error for Error {
+
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Error::Io(e) => write!(f, "{}", e),
+            Error::Protocol(e) => write!(f, "{}", e),
+            Error::Encoding(e) => write!(f, "{}", e),
+            Error::Conversion(e) => write!(f, "{}", e),
+            Error::Utf8(e) => write!(f, "{}", e),
+            Error::Utf16(e) => write!(f, "{}", e),
+            Error::ParseInt(e) => write!(f, "{}", e),
+            Error::Server(e) => write!(f, "{}", e.message.as_str()),
+            Error::Canceled => write!(f, "Cancelled")
+        }
     }
 }
 
