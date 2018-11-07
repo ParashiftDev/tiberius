@@ -70,7 +70,7 @@ pub struct StmtStream<I: BoxableIo, R: StmtResult<I>> {
     /// This marker simply is used to allow this struct to be generic over a possible
     /// result, which allows us to share all state logic within this struct
     /// (e.g. we don't need a query specific future)
-    _marker: PhantomData<*const R>,
+    _marker: PhantomData<R>,
 }
 
 impl<I: BoxableIo, R: StmtResult<I>> StmtStream<I, R> {
@@ -99,6 +99,7 @@ impl<I: BoxableIo, R: StmtResult<I>> StmtStream<I, R> {
         self
     }
 }
+
 
 impl<I: BoxableIo, R: StmtResult<I>> StateStream for StmtStream<I, R> {
     type Item = R::Result;
