@@ -553,7 +553,7 @@ struct InnerSqlConnection<I: BoxableIo> {
 pub struct SqlConnection<I: BoxableIo>(InnerSqlConnection<I>);
 
 /// The authentication method that should be used during authentication
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[allow(non_camel_case_types)]
 pub enum AuthMethod {
     SqlServer(Cow<'static, str>, Cow<'static, str>),
@@ -565,6 +565,7 @@ pub enum AuthMethod {
 }
 
 /// Settings for the connection, everything that isn't IO/transport specific (e.g. authentication)
+#[derive(Clone)]
 pub struct ConnectParams {
     pub host: Cow<'static, str>,
     pub ssl: EncryptionLevel,
@@ -603,14 +604,14 @@ pub trait BoxableIo: Io + Send {}
 impl<I: Io + Send> BoxableIo for I {}
 
 /// A dynamic connection target
-#[derive(PartialEq, Debug)]
-enum ConnectTarget {
+#[derive(PartialEq, Debug, Clone)]
+pub enum ConnectTarget {
     Tcp(SocketAddr),
     TcpViaSQLBrowser(SocketAddr, String),
 }
 
 impl ConnectTarget {
-    fn connect(self) 
+    pub fn connect(self) 
         -> Box<Future<Item = Box<BoxableIo>, Error = Error> + Sync + Send>
     {
         match self {
@@ -836,6 +837,14 @@ impl SqlConnection<Box<BoxableIo>> {
                 let stream = target.connect();
                 SqlConnection::connect_to(connect_params, stream)
             });
+        Box::new(future)
+    }
+
+    pub fn with_target(params: ConnectParams, target: ConnectTarget) 
+        -> Box<Future<Item = SqlConnection<Box<BoxableIo>>, Error=Error> + Send>
+    {
+        let stream = target.connect();
+        let future = SqlConnection::connect_to(params, stream);
         Box::new(future)
     }
 }
