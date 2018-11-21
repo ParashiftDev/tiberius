@@ -244,14 +244,18 @@ impl TypeInfo {
                 VarLenType::Datetimen |
                 VarLenType::Timen |
                 VarLenType::Datetime2 => trans.inner.read_u8()? as usize,
-                VarLenType::NChar | VarLenType::NVarchar | VarLenType::BigVarChar | VarLenType::BigBinary | VarLenType::BigVarBin => {
+                VarLenType::BigChar | VarLenType::NChar | VarLenType::NVarchar | VarLenType::BigVarChar | VarLenType::BigBinary | VarLenType::BigVarBin => {
                     trans.inner.read_u16::<LittleEndian>()? as usize
                 }
                 VarLenType::Daten => 3,
-                val => unimplemented!("{:?}", val),
+                val => {
+                    return Err(Error::Protocol(
+                        format!("invalid or unsupported column type: {:?}", val).into(),
+                    ))
+                },
             };
             let collation = match ty {
-                VarLenType::NChar | VarLenType::NVarchar | VarLenType::BigVarChar => Some(Collation {
+                VarLenType::BigChar | VarLenType::NChar | VarLenType::NVarchar | VarLenType::BigVarChar => Some(Collation {
                     info: trans.inner.read_u32::<LittleEndian>()?,
                     sort_id: trans.inner.read_u8()?,
                 }),
@@ -391,7 +395,7 @@ impl<'a> ColumnData<'a> {
                         trans.state_tracked = false;
                         ret
                     }
-                    VarLenType::BigVarChar => {
+                    VarLenType::BigChar | VarLenType::BigVarChar => {
                         trans.state_tracked = true;
 
                         let mode = ReadTyMode::auto(*len);
@@ -480,7 +484,11 @@ impl<'a> ColumnData<'a> {
                         trans.state_tracked = false;
                         ret
                     }
-                    val => unimplemented!("{:?}", val),
+                    val => {
+                        return Err(Error::Protocol(
+                            format!("invalid or unsupported column type: {:?}", val).into(),
+                        ))
+                    },
                 }
             }
             TypeInfo::VarLenSizedPrecision {
