@@ -645,10 +645,10 @@ impl ConnectTarget {
                     .and_then(|(socket, _)| socket.recv_dgram(vec![0u8; 4096]))
                     .from_err::<Error>()
                     .timeout(Duration::from_secs(5)).map_err(|err| {
-                        if err.is_timer() {
-                            Error::Io(io::Error::new(io::ErrorKind::TimedOut, "Timeout waiting for instance lookup response from server"))
+                        if let Some(err) = err.into_inner() {
+                            err
                         } else {
-                            err.into_inner().unwrap().into()
+                            Error::Io(io::Error::new(io::ErrorKind::TimedOut, "Timeout waiting for instance lookup from server"))
                         }
                     })
                     .and_then(|(_, buf, len, mut addr)| {
