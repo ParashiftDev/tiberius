@@ -92,6 +92,8 @@ extern crate lazy_static;
 extern crate tokio;
 extern crate winauth;
 
+use tokio::prelude::FutureExt;
+use std::time::Duration;
 use std::borrow::Cow;
 use std::convert::From;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -642,6 +644,13 @@ impl ConnectTarget {
                     .and_then(move |socket| socket.send_dgram(msg, &addr))
                     .and_then(|(socket, _)| socket.recv_dgram(vec![0u8; 4096]))
                     .from_err::<Error>()
+                    .timeout(Duration::from_secs(5)).map_err(|err| {
+                        if err.is_timer() {
+                            Error::Io(io::Error::new(io::ErrorKind::TimedOut, "Timeout waiting for instance lookup response from server"))
+                        } else {
+                            err.into_inner().unwrap().into()
+                        }
+                    })
                     .and_then(|(_, buf, len, mut addr)| {
                         let err = Error::Conversion("could not resolve instance".into());
                         if len == 0 {
